@@ -128,3 +128,18 @@ your-tools core auto-register
 
 Keep `.toolrack` reviewed like source code. It defines what becomes part of the
 visible CLI.
+
+`toolrack` also keeps a cache file next to `.toolrack` for faster startup and
+completion. It refreshes automatically when registry-level `core` actions run,
+and it self-invalidates when registered scripts or sidecars change.
+
+Still, after a larger rewrite or a batch of sidecar edits, prefer making the
+state explicit:
+
+```bash
+your-tools core refresh-cache
+```
+
+Agents should run `core refresh-cache` after rewriting a registered script or
+sidecar in a way that changes the CLI surface, especially before validating
+completion behavior.
