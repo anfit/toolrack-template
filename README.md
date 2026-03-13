@@ -72,6 +72,7 @@ The setup script will:
 - add `bin/` to Cygwin's `.bashrc` when a Cygwin home is detected
 - attempt to install Bash completion files under `~/.bash_completion.d`
 - add a small loader block to `.bashrc` so those completion files are sourced
+- optionally remove the example command and template wrapper files after bootstrap
 
 Non-interactive usage is also supported:
 
@@ -108,6 +109,30 @@ python .\sync_toolrack.py --dry-run
 The sync script updates a fixed set of template-owned files such as
 `SIDECAR_SPEC.md`, `AGENTS.md`, `setup_toolrack.py`, and the template test
 files.
+
+## Removing Starter Assets
+
+The example command under `scripts/example/` and the template wrapper files
+`bin/your-tools` and `bin/your-tools.cmd` are only starter material. After
+setup, you can unregister or remove them if you do not want to keep them.
+
+`setup_toolrack.py` can do that cleanup for you:
+
+```powershell
+python .\setup_toolrack.py --force --remove-template-assets
+```
+
+This removes:
+
+- `scripts/example/hello.py`
+- `scripts/example/hello.yml`
+- `scripts/example/README.md`
+- the example entry from `.toolrack`
+- `.toolrack.cache.json`
+- `bin/your-tools` and `bin/your-tools.cmd`
+
+Caveat: if you deliberately chose `your-tools` as your real CLI name, setup
+keeps those wrapper files because they are no longer just template artifacts.
 
 ## Repository Contract
 

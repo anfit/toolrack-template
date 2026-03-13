@@ -68,6 +68,54 @@ class SetupToolrackTests(unittest.TestCase):
         resolved = setup_toolrack.resolve_python_executable(sys.executable)
         self.assertEqual(str(Path(sys.executable)), resolved)
 
+    def test_cleanup_template_assets_removes_example_and_template_wrappers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            example_dir = root / "scripts" / "example"
+            bin_dir.mkdir(parents=True)
+            example_dir.mkdir(parents=True)
+            (root / ".toolrack").write_text("scripts/example/hello.py\n", encoding="utf-8")
+            (root / ".toolrack.cache.json").write_text("{}\n", encoding="utf-8")
+            (example_dir / "hello.py").write_text("", encoding="utf-8")
+            (example_dir / "hello.yml").write_text("", encoding="utf-8")
+            (example_dir / "README.md").write_text("", encoding="utf-8")
+            (bin_dir / "your-tools").write_text("", encoding="utf-8")
+            (bin_dir / "your-tools.cmd").write_text("", encoding="utf-8")
+
+            with mock.patch.object(setup_toolrack, "REPO_ROOT", root):
+                with mock.patch.object(setup_toolrack, "BIN_DIR", bin_dir):
+                    result = setup_toolrack.cleanup_template_assets("my-tools")
+
+            self.assertFalse((example_dir / "hello.py").exists())
+            self.assertFalse((bin_dir / "your-tools").exists())
+            self.assertFalse((root / ".toolrack.cache.json").exists())
+            self.assertEqual("", (root / ".toolrack").read_text(encoding="utf-8"))
+            self.assertIn("scripts/example/hello.py", result["removed"])
+            self.assertIn("bin/your-tools", result["removed"])
+
+    def test_cleanup_template_assets_keeps_template_wrapper_when_cli_name_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            example_dir = root / "scripts" / "example"
+            bin_dir.mkdir(parents=True)
+            example_dir.mkdir(parents=True)
+            (root / ".toolrack").write_text("scripts/example/hello.py\n", encoding="utf-8")
+            (root / ".toolrack.cache.json").write_text("{}\n", encoding="utf-8")
+            (example_dir / "hello.py").write_text("", encoding="utf-8")
+            (example_dir / "hello.yml").write_text("", encoding="utf-8")
+            (example_dir / "README.md").write_text("", encoding="utf-8")
+            (bin_dir / "your-tools").write_text("", encoding="utf-8")
+            (bin_dir / "your-tools.cmd").write_text("", encoding="utf-8")
+
+            with mock.patch.object(setup_toolrack, "REPO_ROOT", root):
+                with mock.patch.object(setup_toolrack, "BIN_DIR", bin_dir):
+                    result = setup_toolrack.cleanup_template_assets("your-tools")
+
+            self.assertTrue((bin_dir / "your-tools").exists())
+            self.assertIn("bin/your-tools", result["skipped"])
+
     def test_ensure_virtualenv_recreates_broken_existing_env(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

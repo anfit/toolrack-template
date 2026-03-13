@@ -26,6 +26,7 @@ class SetupOptions:
     toolrack_path: Path
     python_executable: str
     force: bool = False
+    remove_template_assets: bool = False
 
 
 def default_cli_name() -> str:
@@ -273,6 +274,58 @@ def write_completion_script(
     return target
 
 
+def cleanup_template_assets(cli_name: str) -> dict[str, list[str]]:
+    removed: list[str] = []
+    skipped: list[str] = []
+
+    metadata_files = [
+        REPO_ROOT / ".toolrack",
+        REPO_ROOT / ".toolrack.cache.json",
+    ]
+    example_files = [
+        REPO_ROOT / "scripts" / "example" / "hello.py",
+        REPO_ROOT / "scripts" / "example" / "hello.yml",
+        REPO_ROOT / "scripts" / "example" / "README.md",
+    ]
+
+    registry_path = metadata_files[0]
+    if registry_path.exists():
+        contents = [
+            line for line in registry_path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and line.strip() != "scripts/example/hello.py"
+        ]
+        registry_path.write_text(
+            ("\n".join(contents) + "\n") if contents else "",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+    for path in example_files:
+        if path.exists():
+            path.unlink()
+            removed.append(str(path.relative_to(REPO_ROOT)))
+
+    cache_path = metadata_files[1]
+    if cache_path.exists():
+        cache_path.unlink()
+        removed.append(str(cache_path.relative_to(REPO_ROOT)))
+
+    example_dir = REPO_ROOT / "scripts" / "example"
+    if example_dir.exists() and not any(example_dir.iterdir()):
+        example_dir.rmdir()
+
+    template_wrappers = [BIN_DIR / DEFAULT_WRAPPER_BASENAME, BIN_DIR / f"{DEFAULT_WRAPPER_BASENAME}.cmd"]
+    if cli_name == DEFAULT_WRAPPER_BASENAME:
+        skipped.extend(str(path.relative_to(REPO_ROOT)) for path in template_wrappers)
+    else:
+        for path in template_wrappers:
+            if path.exists():
+                path.unlink()
+                removed.append(str(path.relative_to(REPO_ROOT)))
+
+    return {"removed": removed, "skipped": skipped}
+
+
 def find_cygwin_bashrc(home_dir: Path | None = None) -> Path | None:
     username = os.environ.get("USERNAME") or os.environ.get("USER")
     if not username:
@@ -341,6 +394,10 @@ def run_setup(options: SetupOptions) -> dict[str, str]:
         "cmd_wrapper": str(targets["cmd"]),
     }
     result.update(configure_shell_init(BIN_DIR, python_path, options.cli_name, options.force))
+    if options.remove_template_assets:
+        cleanup = cleanup_template_assets(options.cli_name)
+        result["removed_template_assets"] = "\n".join(cleanup["removed"])
+        result["skipped_template_assets"] = "\n".join(cleanup["skipped"])
     return result
 
 
@@ -360,6 +417,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--force",
         action="store_true",
         help="Overwrite existing generated wrapper files.",
+    )
+    parser.add_argument(
+        "--remove-template-assets",
+        action="store_true",
+        help="Remove the example command and template wrappers after setup.",
     )
     parser.add_argument(
         "--yes",
@@ -390,6 +452,7 @@ def build_options(args: argparse.Namespace) -> SetupOptions:
         toolrack_path=toolrack_path,
         python_executable=args.python,
         force=args.force,
+        remove_template_assets=args.remove_template_assets,
     )
 
 
@@ -414,10 +477,22 @@ def print_summary(options: SetupOptions, result: dict[str, str]) -> None:
     if not completion_lines:
         completion_lines.append("Bash completion was not configured automatically.")
 
+    cleanup_lines = []
+    if result.get("removed_template_assets"):
+        cleanup_lines.append("Removed template assets:")
+        cleanup_lines.extend(f"  {line}" for line in result["removed_template_assets"].splitlines())
+    if result.get("skipped_template_assets"):
+        cleanup_lines.append("Kept template assets:")
+        cleanup_lines.extend(
+            f"  {line}  (kept because your CLI name is '{DEFAULT_WRAPPER_BASENAME}')"
+            for line in result["skipped_template_assets"].splitlines()
+        )
+
     path_note = "\n".join(
         [
             *path_lines,
             *completion_lines,
+            *cleanup_lines,
             f"Then run `{options.cli_name} --help`.",
             f"Windows wrapper: {result['cmd_wrapper']}",
             f"POSIX wrapper:   {result['posix_wrapper']}",
