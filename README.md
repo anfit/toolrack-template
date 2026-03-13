@@ -29,6 +29,8 @@ repo help you keep them from becoming a drawer full of mystery adapters.
 
 - `scripts/`: your runnable scripts
 - `.toolrack`: registry of scripts exposed in the CLI
+- `.toolrack.cache.json`: cached command metadata used for faster startup and completion
+- `aliases.cfg`: optional path-shortening aliases for command groups
 - `bin/your-tools` and `bin/your-tools.cmd`: wrapper templates
 - `setup_toolrack.py`: guided bootstrap for the local virtualenv and wrappers
 - `sync_toolrack.py`: refresh selected template-maintained files from the canonical repo
@@ -41,6 +43,15 @@ one above: any supported script can live under `scripts/` with an adjacent
 sidecar.
 
 Contributor guidance for shaping new commands lives in [AGENTS.md](AGENTS.md).
+
+If you want shorter group names in the generated CLI, define them in a
+repo-root `aliases.cfg` next to `.toolrack`. Example:
+
+```ini
+[groups]
+environments = env
+refactoring = refactor
+```
 
 ## First-Time Setup
 
@@ -101,6 +112,8 @@ files.
 ## Repository Contract
 
 - Registry file: `.toolrack`
+- Cache file: `.toolrack.cache.json`
+- Aliases file: `aliases.cfg`
 - Scripts root: `scripts/`
 - Wrapper scripts set `TOOLRACK_CLI_NAME`, `TOOLRACK_REPO_ROOT`,
   `TOOLRACK_SCRIPTS_ROOT`, and `TOOLRACK_REGISTRY_FILE`

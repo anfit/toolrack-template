@@ -19,5 +19,5 @@
       }
     }
   ],
-  "signature": "{\"aliases_state\":{\"exists\":false,\"mtime_ns\":0,\"size\":0},\"entries\":[{\"registry_entry\":\"scripts/example/hello.py\",\"script_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":283},\"sidecar_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":96}}],\"registry\":[\"scripts/example/hello.py\"],\"registry_file\":\"C:/projects/toolrack-template/.toolrack\",\"registry_state\":{\"exists\":true,\"mtime_ns\":1773399956912119200,\"size\":26},\"repo_root\":\"C:/projects/toolrack-template\",\"scripts_root\":\"C:/projects/toolrack-template/scripts\"}"
+  "signature": "{\"aliases_file\":\"C:\\\\projects\\\\toolrack-template\\\\aliases.cfg\",\"aliases_state\":{\"exists\":false,\"mtime_ns\":0,\"size\":0},\"entries\":[{\"registry_entry\":\"scripts/example/hello.py\",\"script_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":283},\"sidecar_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":96}}],\"registry\":[\"scripts/example/hello.py\"],\"registry_file\":\"C:\\\\projects\\\\toolrack-template\\\\.toolrack\",\"registry_state\":{\"exists\":true,\"mtime_ns\":1773399956912119200,\"size\":26},\"repo_root\":\"C:\\\\projects\\\\toolrack-template\",\"scripts_root\":\"C:\\\\projects\\\\toolrack-template\\\\scripts\"}"
 }

@@ -143,3 +143,15 @@ your-tools core refresh-cache
 Agents should run `core refresh-cache` after rewriting a registered script or
 sidecar in a way that changes the CLI surface, especially before validating
 completion behavior.
+
+If group paths should be shorter in the CLI, add a repo-root `aliases.cfg`
+next to `.toolrack`:
+
+```ini
+[groups]
+environments = env
+refactoring = refactor
+```
+
+That changes the visible command path without forcing you to rename the actual
+folders under `scripts/`.
