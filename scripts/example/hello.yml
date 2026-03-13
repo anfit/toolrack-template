@@ -1,0 +1,5 @@
+description: Print a greeting.
+args:
+  - name: name
+    required: true
+    help: Name to greet.
