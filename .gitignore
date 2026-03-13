@@ -166,3 +166,6 @@ dmypy.json
 __pycache__/
 *.pyc
 /.idea/
+.toolrack
+.toolrack.cache.json
+/bin/
