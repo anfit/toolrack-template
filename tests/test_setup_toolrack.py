@@ -30,7 +30,14 @@ class SetupToolrackTests(unittest.TestCase):
             root = Path(tmp)
             bin_dir = root / "bin"
             bin_dir.mkdir()
-            (bin_dir / "your-tools").write_text("#!/bin/bash\r\n", encoding="utf-8", newline="\r\n")
+            (bin_dir / "your-tools").write_text(
+                "#!/bin/bash\r\n"
+                "set -euo pipefail\r\n"
+                "\r\n"
+                'SCRIPT_PATH="${BASH_SOURCE[0]}"\r\n',
+                encoding="utf-8",
+                newline="\r\n",
+            )
             (bin_dir / "your-tools.cmd").write_text("@echo off\r\n", encoding="utf-8")
 
             with mock.patch.object(setup_toolrack, "BIN_DIR", bin_dir):
@@ -38,7 +45,9 @@ class SetupToolrackTests(unittest.TestCase):
 
             self.assertTrue(targets["posix"].is_file())
             self.assertTrue(targets["cmd"].is_file())
-            self.assertEqual("#!/bin/bash\n", targets["posix"].read_text(encoding="utf-8"))
+            posix_contents = targets["posix"].read_text(encoding="utf-8")
+            self.assertTrue(posix_contents.startswith("#!/bin/bash\n"))
+            self.assertIn('SCRIPT_PATH="${BASH_SOURCE[0]}"\n', posix_contents)
             self.assertTrue(targets["cmd"].read_text(encoding="utf-8").startswith("@echo off"))
 
     def test_build_options_uses_defaults_with_yes(self):
