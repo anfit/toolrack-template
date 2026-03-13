@@ -58,6 +58,8 @@ The setup script will:
 - generate `bin/<your-command>` and `bin/<your-command>.cmd`
 - add `bin/` to `~/.bashrc`
 - add `bin/` to Cygwin's `.bashrc` when a Cygwin home is detected
+- attempt to install Bash completion files under `~/.bash_completion.d`
+- add a small loader block to `.bashrc` so those completion files are sourced
 
 Non-interactive usage is also supported:
 
@@ -71,6 +73,9 @@ After setup, open a new shell and run your generated command:
 my-tools --help
 my-tools example hello --name Alice
 ```
+
+If completion was configured successfully, Bash and Cygwin Bash should also
+offer tab completion for your generated command after you open a new shell.
 
 ## Repository Contract
 

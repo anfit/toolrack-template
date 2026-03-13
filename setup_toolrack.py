@@ -16,6 +16,8 @@ REPO_ROOT = Path(__file__).resolve().parent
 BIN_DIR = REPO_ROOT / "bin"
 DEFAULT_WRAPPER_BASENAME = "your-tools"
 PATH_BLOCK_MARKER = "toolrack-template bin"
+COMPLETION_BLOCK_MARKER = "toolrack-template bash completion loader"
+LEGACY_COMPLETION_BLOCK_MARKER = "toolrack-template completion"
 
 
 @dataclass
@@ -65,14 +67,57 @@ def prompt_with_default(prompt: str, default: str) -> str:
     return value or default
 
 
+def resolve_python_executable(python_executable: str) -> str:
+    candidates: list[str] = []
+    for candidate in (
+        python_executable,
+        getattr(sys, "_base_executable", None),
+        sys.executable,
+    ):
+        if not candidate:
+            continue
+        if candidate not in candidates:
+            candidates.append(candidate)
+
+    for candidate in candidates:
+        path = Path(candidate)
+        if path.is_file():
+            return str(path)
+
+    return python_executable
+
+
+def interpreter_works(python_path: Path) -> bool:
+    try:
+        result = subprocess.run(
+            [str(python_path), "-c", "import sys; print(sys.executable)"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
 def ensure_virtualenv(python_executable: str, repo_root: Path) -> Path:
     python_path = venv_python(repo_root)
-    if python_path.is_file():
+    base_python = resolve_python_executable(python_executable)
+
+    if python_path.is_file() and interpreter_works(python_path):
         return python_path
+
+    if (repo_root / ".venv").exists():
+        shutil.rmtree(repo_root / ".venv")
+
     subprocess.run(
-        [python_executable, "-m", "venv", str(repo_root / ".venv")],
+        [base_python, "-m", "venv", str(repo_root / ".venv")],
         check=True,
     )
+
+    if not interpreter_works(python_path):
+        raise RuntimeError(f"virtualenv interpreter is not usable: {python_path}")
+
     return python_path
 
 
@@ -104,9 +149,14 @@ def write_wrappers(cli_name: str, force: bool) -> dict[str, Path]:
     for kind, target in targets.items():
         if target.exists() and not force:
             raise FileExistsError(f"{target} already exists. Re-run with --force to overwrite it.")
-        shutil.copyfile(templates[kind], target)
-        if kind == "posix" and os.name != "nt":
-            target.chmod(target.stat().st_mode | 0o111)
+        if kind == "posix":
+            contents = templates[kind].read_text(encoding="utf-8")
+            # Force LF line endings so the shebang stays portable in Git Bash and Cygwin.
+            target.write_text(contents.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8", newline="\n")
+            if os.name != "nt":
+                target.chmod(target.stat().st_mode | 0o111)
+        else:
+            shutil.copyfile(templates[kind], target)
     return targets
 
 
@@ -149,6 +199,80 @@ def append_path_block(bashrc_path: Path, bin_dir: Path, *, style: str) -> bool:
     return True
 
 
+def append_completion_block(bashrc_path: Path) -> bool:
+    def _strip_legacy_completion_blocks(text: str) -> str:
+        lines = text.splitlines(keepends=True)
+        cleaned: list[str] = []
+        skip = False
+        for line in lines:
+            if f"({LEGACY_COMPLETION_BLOCK_MARKER})" in line:
+                skip = True
+                continue
+            if skip:
+                if line.strip() == "fi":
+                    skip = False
+                continue
+            cleaned.append(line)
+        return "".join(cleaned)
+
+    block = (
+        f"\n# Added by setup_toolrack.py ({COMPLETION_BLOCK_MARKER})\n"
+        'if [ -d ~/.bash_completion.d ]; then\n'
+        '  for f in ~/.bash_completion.d/*; do\n'
+        '    [ -r "$f" ] && . "$f"\n'
+        "  done\n"
+        "fi\n"
+    )
+    existing = bashrc_path.read_text(encoding="utf-8") if bashrc_path.exists() else ""
+    existing = _strip_legacy_completion_blocks(existing)
+    if COMPLETION_BLOCK_MARKER in existing or "for f in ~/.bash_completion.d/*;" in existing:
+        return False
+
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
+
+    bashrc_path.parent.mkdir(parents=True, exist_ok=True)
+    with bashrc_path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(existing + block)
+    return True
+
+
+def write_completion_script(
+    completion_dir: Path,
+    python_path: Path,
+    cli_name: str,
+    *,
+    force: bool = False,
+) -> Path:
+    completion_dir.mkdir(parents=True, exist_ok=True)
+    target = completion_dir / cli_name
+    if target.exists() and not force:
+        return target
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "TOOLRACK_CLI_NAME": cli_name,
+            "TOOLRACK_REPO_ROOT": str(REPO_ROOT),
+            "TOOLRACK_SCRIPTS_ROOT": str(REPO_ROOT / "scripts"),
+            "TOOLRACK_REGISTRY_FILE": str(REPO_ROOT / ".toolrack"),
+        }
+    )
+    result = subprocess.run(
+        [str(python_path), "-m", "toolrack", "core", "install-completion", "bash"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+    target.write_text(
+        result.stdout.replace("\r\n", "\n").replace("\r", "\n"),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return target
+
+
 def find_cygwin_bashrc(home_dir: Path | None = None) -> Path | None:
     username = os.environ.get("USERNAME") or os.environ.get("USER")
     if not username:
@@ -173,17 +297,35 @@ def find_cygwin_bashrc(home_dir: Path | None = None) -> Path | None:
     return None
 
 
-def configure_bash_path(bin_dir: Path) -> dict[str, str]:
+def configure_shell_init(bin_dir: Path, python_path: Path, cli_name: str, force: bool) -> dict[str, str]:
     updates: dict[str, str] = {}
 
     home_bashrc = Path.home() / ".bashrc"
     if append_path_block(home_bashrc, bin_dir, style="git-bash"):
         updates["bashrc"] = str(home_bashrc)
+    if append_completion_block(home_bashrc):
+        updates["bash_completion_loader"] = str(home_bashrc)
+    bash_completion = write_completion_script(
+        Path.home() / ".bash_completion.d",
+        python_path,
+        cli_name,
+        force=force,
+    )
+    updates["bash_completion"] = str(bash_completion)
 
     cygwin_bashrc = find_cygwin_bashrc()
     if cygwin_bashrc and cygwin_bashrc != home_bashrc:
         if append_path_block(cygwin_bashrc, bin_dir, style="cygwin"):
             updates["cygwin_bashrc"] = str(cygwin_bashrc)
+        if append_completion_block(cygwin_bashrc):
+            updates["cygwin_completion_loader"] = str(cygwin_bashrc)
+        cygwin_completion = write_completion_script(
+            cygwin_bashrc.parent / ".bash_completion.d",
+            python_path,
+            cli_name,
+            force=force,
+        )
+        updates["cygwin_completion"] = str(cygwin_completion)
 
     return updates
 
@@ -198,7 +340,7 @@ def run_setup(options: SetupOptions) -> dict[str, str]:
         "posix_wrapper": str(targets["posix"]),
         "cmd_wrapper": str(targets["cmd"]),
     }
-    result.update(configure_bash_path(BIN_DIR))
+    result.update(configure_shell_init(BIN_DIR, python_path, options.cli_name, options.force))
     return result
 
 
@@ -260,9 +402,22 @@ def print_summary(options: SetupOptions, result: dict[str, str]) -> None:
     if not path_lines:
         path_lines.append(f"Add {BIN_DIR} to PATH.")
 
+    completion_lines = []
+    if "bash_completion_loader" in result:
+        completion_lines.append(f"Bash completion loader updated: {result['bash_completion_loader']}")
+    if "bash_completion" in result:
+        completion_lines.append(f"Bash completion script: {result['bash_completion']}")
+    if "cygwin_completion_loader" in result:
+        completion_lines.append(f"Cygwin completion loader updated: {result['cygwin_completion_loader']}")
+    if "cygwin_completion" in result:
+        completion_lines.append(f"Cygwin completion script: {result['cygwin_completion']}")
+    if not completion_lines:
+        completion_lines.append("Bash completion was not configured automatically.")
+
     path_note = "\n".join(
         [
             *path_lines,
+            *completion_lines,
             f"Then run `{options.cli_name} --help`.",
             f"Windows wrapper: {result['cmd_wrapper']}",
             f"POSIX wrapper:   {result['posix_wrapper']}",
@@ -276,7 +431,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         options = build_options(args)
         result = run_setup(options)
-    except (FileExistsError, ValueError, subprocess.CalledProcessError) as exc:
+    except (FileExistsError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"setup-toolrack: {exc}", file=sys.stderr)
         return 1
 

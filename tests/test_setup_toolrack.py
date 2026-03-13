@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,7 +30,7 @@ class SetupToolrackTests(unittest.TestCase):
             root = Path(tmp)
             bin_dir = root / "bin"
             bin_dir.mkdir()
-            (bin_dir / "your-tools").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            (bin_dir / "your-tools").write_text("#!/bin/bash\r\n", encoding="utf-8", newline="\r\n")
             (bin_dir / "your-tools.cmd").write_text("@echo off\r\n", encoding="utf-8")
 
             with mock.patch.object(setup_toolrack, "BIN_DIR", bin_dir):
@@ -36,7 +38,7 @@ class SetupToolrackTests(unittest.TestCase):
 
             self.assertTrue(targets["posix"].is_file())
             self.assertTrue(targets["cmd"].is_file())
-            self.assertEqual("#!/usr/bin/env bash\n", targets["posix"].read_text(encoding="utf-8"))
+            self.assertEqual("#!/bin/bash\n", targets["posix"].read_text(encoding="utf-8"))
             self.assertTrue(targets["cmd"].read_text(encoding="utf-8").startswith("@echo off"))
 
     def test_build_options_uses_defaults_with_yes(self):
@@ -52,6 +54,38 @@ class SetupToolrackTests(unittest.TestCase):
 
             self.assertEqual("repo-tools", options.cli_name)
             self.assertEqual(toolrack.resolve(), options.toolrack_path)
+
+    def test_resolve_python_executable_prefers_existing_file(self):
+        resolved = setup_toolrack.resolve_python_executable(sys.executable)
+        self.assertEqual(str(Path(sys.executable)), resolved)
+
+    def test_ensure_virtualenv_recreates_broken_existing_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scripts_dir = root / ".venv" / "Scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "python.exe").write_text("", encoding="utf-8")
+
+            created = []
+
+            def fake_run(cmd, **kwargs):
+                cmd = [str(part) for part in cmd]
+                if cmd[1:3] == ["-c", "import sys; print(sys.executable)"]:
+                    if created:
+                        return subprocess.CompletedProcess(cmd, 0, stdout="ok\n", stderr="")
+                    return subprocess.CompletedProcess(cmd, 103, stdout="", stderr="broken\n")
+                if cmd[1:3] == ["-m", "venv"]:
+                    created.append(cmd[-1])
+                    (root / ".venv" / "Scripts").mkdir(parents=True, exist_ok=True)
+                    (root / ".venv" / "Scripts" / "python.exe").write_text("ok", encoding="utf-8")
+                    return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+                raise AssertionError(f"unexpected command: {cmd}")
+
+            with mock.patch.object(setup_toolrack.subprocess, "run", side_effect=fake_run):
+                python_path = setup_toolrack.ensure_virtualenv(sys.executable, root)
+
+            self.assertEqual(root / ".venv" / "Scripts" / "python.exe", python_path)
+            self.assertEqual([str(root / ".venv")], created)
 
     def test_append_path_block_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -91,6 +125,80 @@ class SetupToolrackTests(unittest.TestCase):
             contents = bashrc.read_bytes()
             self.assertIn(b"\n# Added by setup_toolrack.py", contents)
             self.assertNotIn(b"\r\n", contents)
+
+    def test_append_completion_block_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bashrc = Path(tmp) / ".bashrc"
+            bashrc.write_text("# existing\n", encoding="utf-8")
+
+            changed = setup_toolrack.append_completion_block(
+                bashrc,
+            )
+            changed_again = setup_toolrack.append_completion_block(
+                bashrc,
+            )
+
+            contents = bashrc.read_text(encoding="utf-8")
+            self.assertTrue(changed)
+            self.assertFalse(changed_again)
+            self.assertEqual(1, contents.count(setup_toolrack.COMPLETION_BLOCK_MARKER))
+            self.assertIn('for f in ~/.bash_completion.d/*; do', contents)
+
+    def test_append_completion_block_writes_lf_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bashrc = Path(tmp) / ".bashrc"
+            bashrc.write_text("# existing\n", encoding="utf-8", newline="\n")
+
+            setup_toolrack.append_completion_block(
+                bashrc,
+            )
+
+            contents = bashrc.read_bytes()
+            self.assertIn(b"\n# Added by setup_toolrack.py", contents)
+            self.assertNotIn(b"\r\n", contents)
+
+    def test_append_completion_block_replaces_legacy_loader(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bashrc = Path(tmp) / ".bashrc"
+            bashrc.write_text(
+                (
+                    "# existing\n"
+                    "# Added by setup_toolrack.py (toolrack-template completion)\n"
+                    'if [ -x "/old/wrapper" ]; then\n'
+                    '  eval "$(\\"/old/wrapper\\" core install-completion bash 2>/dev/null)"\n'
+                    "fi\n"
+                ),
+                encoding="utf-8",
+            )
+
+            changed = setup_toolrack.append_completion_block(bashrc)
+            contents = bashrc.read_text(encoding="utf-8")
+
+            self.assertTrue(changed)
+            self.assertNotIn("toolrack-template completion", contents)
+            self.assertIn("toolrack-template bash completion loader", contents)
+
+    def test_write_completion_script_generates_cli_specific_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            completion_dir = Path(tmp) / ".bash_completion.d"
+
+            def fake_run(cmd, **kwargs):
+                self.assertEqual(
+                    [str(Path(tmp) / "python.exe"), "-m", "toolrack", "core", "install-completion", "bash"],
+                    [str(part) for part in cmd],
+                )
+                self.assertEqual("my-tools", kwargs["env"]["TOOLRACK_CLI_NAME"])
+                return subprocess.CompletedProcess(cmd, 0, stdout="_MY_TOOLS_COMPLETE\n", stderr="")
+
+            with mock.patch.object(setup_toolrack.subprocess, "run", side_effect=fake_run):
+                target = setup_toolrack.write_completion_script(
+                    completion_dir,
+                    Path(tmp) / "python.exe",
+                    "my-tools",
+                )
+
+            self.assertEqual(completion_dir / "my-tools", target)
+            self.assertEqual("_MY_TOOLS_COMPLETE\n", target.read_text(encoding="utf-8"))
 
     def test_find_cygwin_bashrc_prefers_existing_home(self):
         with tempfile.TemporaryDirectory() as tmp:
