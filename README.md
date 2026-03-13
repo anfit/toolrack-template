@@ -9,11 +9,15 @@ Starter repository for a personal or team scripts collection powered by
 - `.toolrack`: registry of scripts exposed in the CLI
 - `bin/your-tools` and `bin/your-tools.cmd`: wrapper templates
 - `setup_toolrack.py`: guided bootstrap for the local virtualenv and wrappers
+- `AGENTS.md`: contributor guidance for adding scripts, sidecars, tests, and docs
 - `scripts/example/hello.py` + `hello.yml`: minimal sample command
+- `scripts/example/README.md`: example group-level documentation
 
 The example script is only a sample. The repository contract is the generic
 one above: any supported script can live under `scripts/` with an adjacent
 sidecar.
+
+Contributor guidance for shaping new commands lives in [AGENTS.md](AGENTS.md).
 
 ## First-Time Setup
 
