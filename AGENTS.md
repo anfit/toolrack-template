@@ -25,6 +25,10 @@ tests/test_example_hello.py
 Do not add a script without its sidecar. The sidecar is part of the user-facing
 CLI contract.
 
+The canonical sidecar format for this repo is documented in
+`SIDECAR_SPEC.md`. When in doubt, treat that file as the source of truth for
+field names, argument shapes, and validation rules.
+
 ## Group Layout
 
 Each first-level folder under `scripts/` is a command group. Prefer keeping a
