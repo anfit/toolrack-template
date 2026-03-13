@@ -3,6 +3,28 @@
 Starter repository for a personal or team scripts collection powered by
 `toolrack`.
 
+This template is the companion repo to
+[`toolrack`](https://github.com/anfit/toolrack), the dispatcher engine that
+turns a scripts folder plus sidecars into a typed CLI.
+
+## Why This Exists
+
+AI makes it much easier to write simple scripts than it used to. That is great
+right up until your "quick helpers" become a private archaeological site.
+
+This template exists because:
+
+- AI lowers the cost of writing small scripts.
+- A larger script collection increases the need for clear organization,
+  consistent interfaces, and lightweight documentation.
+- AI works best with compartmentalized tasks, so small focused scripts are a
+  feature, not a temporary phase.
+- AI output is not deterministic, and your future self deserves at least some
+  automation that does the same thing twice in a row without improvising.
+
+In other words: let the model help you write the little tools, then let the
+repo help you keep them from becoming a drawer full of mystery adapters.
+
 ## What This Template Includes
 
 - `scripts/`: your runnable scripts
@@ -59,3 +81,5 @@ my-tools example hello --name Alice
 - The wrapper filename becomes the visible CLI command name
 
 For the sidecar format, see [SIDECAR_SPEC.md](SIDECAR_SPEC.md).
+For the engine behind this template, see
+[`toolrack`](https://github.com/anfit/toolrack).
