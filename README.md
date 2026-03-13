@@ -31,6 +31,7 @@ repo help you keep them from becoming a drawer full of mystery adapters.
 - `.toolrack`: registry of scripts exposed in the CLI
 - `bin/your-tools` and `bin/your-tools.cmd`: wrapper templates
 - `setup_toolrack.py`: guided bootstrap for the local virtualenv and wrappers
+- `sync_toolrack.py`: refresh selected template-maintained files from the canonical repo
 - `AGENTS.md`: contributor guidance for adding scripts, sidecars, tests, and docs
 - `scripts/example/hello.py` + `hello.yml`: minimal sample command
 - `scripts/example/README.md`: example group-level documentation
@@ -76,6 +77,26 @@ my-tools example hello --name Alice
 
 If completion was configured successfully, Bash and Cygwin Bash should also
 offer tab completion for your generated command after you open a new shell.
+
+## Syncing Template-Maintained Files
+
+Some files in a working scripts repo may intentionally track the canonical
+`toolrack-template` repository over time. To refresh those files in place
+without creating commits automatically, run:
+
+```powershell
+python .\sync_toolrack.py
+```
+
+Or preview changes first:
+
+```powershell
+python .\sync_toolrack.py --dry-run
+```
+
+The sync script updates a fixed set of template-owned files such as
+`SIDECAR_SPEC.md`, `AGENTS.md`, `setup_toolrack.py`, and the template test
+files.
 
 ## Repository Contract
 
