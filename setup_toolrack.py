@@ -15,6 +15,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent
 BIN_DIR = REPO_ROOT / "bin"
 DEFAULT_WRAPPER_BASENAME = "your-tools"
+PYPI_PACKAGE = "toolrack-cli"
 PATH_BLOCK_MARKER = "toolrack-template bin"
 COMPLETION_BLOCK_MARKER = "toolrack-template bash completion loader"
 LEGACY_COMPLETION_BLOCK_MARKER = "toolrack-template completion"
@@ -23,7 +24,7 @@ LEGACY_COMPLETION_BLOCK_MARKER = "toolrack-template completion"
 @dataclass
 class SetupOptions:
     cli_name: str
-    toolrack_path: Path
+    toolrack_path: Path | None
     python_executable: str
     force: bool = False
     remove_template_assets: bool = False
@@ -43,10 +44,6 @@ def validate_cli_name(value: str) -> str:
     if name in {".", ".."}:
         raise ValueError("CLI name must not be '.' or '..'.")
     return name
-
-
-def default_toolrack_path() -> Path:
-    return (REPO_ROOT.parent / "toolrack").resolve()
 
 
 def validate_toolrack_path(value: str | Path) -> Path:
@@ -122,11 +119,13 @@ def ensure_virtualenv(python_executable: str, repo_root: Path) -> Path:
     return python_path
 
 
-def install_toolrack(python_path: Path, toolrack_path: Path) -> None:
-    subprocess.run(
-        [str(python_path), "-m", "pip", "install", "-e", str(toolrack_path)],
-        check=True,
-    )
+def install_toolrack(python_path: Path, toolrack_path: Path | None = None) -> None:
+    """Install the engine from PyPI, or editable from a local checkout."""
+    if toolrack_path is None:
+        command = [str(python_path), "-m", "pip", "install", "--upgrade", PYPI_PACKAGE]
+    else:
+        command = [str(python_path), "-m", "pip", "install", "-e", str(toolrack_path)]
+    subprocess.run(command, check=True)
 
 
 def wrapper_targets(cli_name: str) -> dict[str, Path]:
@@ -389,7 +388,7 @@ def run_setup(options: SetupOptions) -> dict[str, str]:
     targets = write_wrappers(options.cli_name, options.force)
     result = {
         "python": str(python_path),
-        "toolrack": str(options.toolrack_path),
+        "toolrack": str(options.toolrack_path) if options.toolrack_path else f"{PYPI_PACKAGE} (PyPI)",
         "posix_wrapper": str(targets["posix"]),
         "cmd_wrapper": str(targets["cmd"]),
     }
@@ -406,7 +405,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cli-name", help="Command name to create in bin/.")
     parser.add_argument(
         "--toolrack",
-        help="Path to the sibling toolrack checkout.",
+        help=f"Developer override: editable-install this local toolrack checkout instead of {PYPI_PACKAGE} from PyPI.",
     )
     parser.add_argument(
         "--python",
@@ -433,19 +432,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def build_options(args: argparse.Namespace) -> SetupOptions:
     cli_default = default_cli_name()
-    toolrack_default = str(default_toolrack_path())
 
     cli_name = args.cli_name
-    toolrack_value = args.toolrack
-
-    if not args.yes:
-        if not cli_name:
-            cli_name = prompt_with_default("CLI command name", cli_default)
-        if not toolrack_value:
-            toolrack_value = prompt_with_default("Path to toolrack checkout", toolrack_default)
+    if not args.yes and not cli_name:
+        cli_name = prompt_with_default("CLI command name", cli_default)
 
     cli_name = validate_cli_name(cli_name or cli_default)
-    toolrack_path = validate_toolrack_path(toolrack_value or toolrack_default)
+    toolrack_path = validate_toolrack_path(args.toolrack) if args.toolrack else None
 
     return SetupOptions(
         cli_name=cli_name,

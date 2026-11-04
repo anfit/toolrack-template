@@ -64,9 +64,8 @@ python .\setup_toolrack.py
 The setup script will:
 
 - ask for the CLI command name you want in `bin/`
-- ask where your `toolrack` checkout lives
 - create `.venv/` if needed
-- install `toolrack` into that virtualenv
+- install the engine (`toolrack-cli` from PyPI) into that virtualenv
 - generate `bin/<your-command>` and `bin/<your-command>.cmd`
 - add `bin/` to `~/.bashrc`
 - add `bin/` to Cygwin's `.bashrc` when a Cygwin home is detected
@@ -75,6 +74,13 @@ The setup script will:
 - optionally remove the example command and template wrapper files after bootstrap
 
 Non-interactive usage is also supported:
+
+```powershell
+python .\setup_toolrack.py --yes --cli-name my-tools
+```
+
+Developing the engine itself? Install it editable from a local checkout instead
+of PyPI:
 
 ```powershell
 python .\setup_toolrack.py --yes --cli-name my-tools --toolrack ..\toolrack

@@ -50,19 +50,35 @@ class SetupToolrackTests(unittest.TestCase):
             self.assertIn('SCRIPT_PATH="${BASH_SOURCE[0]}"\n', posix_contents)
             self.assertTrue(targets["cmd"].read_text(encoding="utf-8").startswith("@echo off"))
 
-    def test_build_options_uses_defaults_with_yes(self):
+    def test_build_options_defaults_to_pypi_install_with_yes(self):
+        with mock.patch.object(setup_toolrack, "default_cli_name", return_value="repo-tools"):
+            args = setup_toolrack.parse_args(["--yes"])
+            options = setup_toolrack.build_options(args)
+
+        self.assertEqual("repo-tools", options.cli_name)
+        self.assertIsNone(options.toolrack_path)
+
+    def test_build_options_accepts_local_checkout_override(self):
         with tempfile.TemporaryDirectory() as tmp:
             toolrack = Path(tmp) / "toolrack"
             (toolrack / "src" / "toolrack").mkdir(parents=True)
             (toolrack / "src" / "toolrack" / "cli.py").write_text("", encoding="utf-8")
 
-            with mock.patch.object(setup_toolrack, "default_toolrack_path", return_value=toolrack):
-                with mock.patch.object(setup_toolrack, "default_cli_name", return_value="repo-tools"):
-                    args = setup_toolrack.parse_args(["--yes"])
-                    options = setup_toolrack.build_options(args)
+            args = setup_toolrack.parse_args(["--yes", "--cli-name", "x", "--toolrack", str(toolrack)])
+            options = setup_toolrack.build_options(args)
 
-            self.assertEqual("repo-tools", options.cli_name)
-            self.assertEqual(toolrack.resolve(), options.toolrack_path)
+        self.assertEqual(toolrack.resolve(), options.toolrack_path)
+
+    def test_install_toolrack_uses_pypi_by_default_and_editable_for_checkout(self):
+        python = Path("py")
+        with mock.patch.object(setup_toolrack.subprocess, "run") as run:
+            setup_toolrack.install_toolrack(python, None)
+            setup_toolrack.install_toolrack(python, Path("/src/toolrack"))
+
+        self.assertEqual(
+            ["py", "-m", "pip", "install", "--upgrade", "toolrack-cli"], run.call_args_list[0].args[0]
+        )
+        self.assertEqual(["py", "-m", "pip", "install", "-e"], run.call_args_list[1].args[0][:5])
 
     def test_resolve_python_executable_prefers_existing_file(self):
         resolved = setup_toolrack.resolve_python_executable(sys.executable)
