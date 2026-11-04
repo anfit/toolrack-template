@@ -303,12 +303,12 @@ def cleanup_template_assets(cli_name: str) -> dict[str, list[str]]:
     for path in example_files:
         if path.exists():
             path.unlink()
-            removed.append(str(path.relative_to(REPO_ROOT)))
+            removed.append(path.relative_to(REPO_ROOT).as_posix())
 
     cache_path = metadata_files[1]
     if cache_path.exists():
         cache_path.unlink()
-        removed.append(str(cache_path.relative_to(REPO_ROOT)))
+        removed.append(cache_path.relative_to(REPO_ROOT).as_posix())
 
     example_dir = REPO_ROOT / "scripts" / "example"
     if example_dir.exists() and not any(example_dir.iterdir()):
@@ -316,12 +316,12 @@ def cleanup_template_assets(cli_name: str) -> dict[str, list[str]]:
 
     template_wrappers = [BIN_DIR / DEFAULT_WRAPPER_BASENAME, BIN_DIR / f"{DEFAULT_WRAPPER_BASENAME}.cmd"]
     if cli_name == DEFAULT_WRAPPER_BASENAME:
-        skipped.extend(str(path.relative_to(REPO_ROOT)) for path in template_wrappers)
+        skipped.extend(path.relative_to(REPO_ROOT).as_posix() for path in template_wrappers)
     else:
         for path in template_wrappers:
             if path.exists():
                 path.unlink()
-                removed.append(str(path.relative_to(REPO_ROOT)))
+                removed.append(path.relative_to(REPO_ROOT).as_posix())
 
     return {"removed": removed, "skipped": skipped}
 

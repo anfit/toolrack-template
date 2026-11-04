@@ -17,4 +17,11 @@ export TOOLRACK_REPO_ROOT="$REPO_ROOT"
 export TOOLRACK_SCRIPTS_ROOT="$REPO_ROOT/scripts"
 export TOOLRACK_REGISTRY_FILE="$REPO_ROOT/.toolrack"
 
-exec "$REPO_ROOT/.venv/Scripts/python.exe" -m toolrack "$@"
+# Windows venvs use Scripts/, POSIX venvs use bin/.
+if [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
+  PYTHON="$REPO_ROOT/.venv/bin/python"
+else
+  PYTHON="$REPO_ROOT/.venv/Scripts/python.exe"
+fi
+
+exec "$PYTHON" -m toolrack "$@"
