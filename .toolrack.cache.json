@@ -17,7 +17,18 @@
         ],
         "description": "Print a greeting."
       }
+    },
+    {
+      "abs_path": "C:\\projects\\toolrack-template\\scripts\\git\\fixup-all.py",
+      "cmd_name": "fixup-all",
+      "entry": "scripts/git/fixup-all.py",
+      "group_parts": [
+        "git"
+      ],
+      "sidecar": {
+        "description": "Auto-fixup all changes"
+      }
     }
   ],
-  "signature": "{\"aliases_file\":\"C:\\\\projects\\\\toolrack-template\\\\aliases.cfg\",\"aliases_state\":{\"exists\":false,\"mtime_ns\":0,\"size\":0},\"entries\":[{\"registry_entry\":\"scripts/example/hello.py\",\"script_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":283},\"sidecar_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":96}}],\"registry\":[\"scripts/example/hello.py\"],\"registry_file\":\"C:\\\\projects\\\\toolrack-template\\\\.toolrack\",\"registry_state\":{\"exists\":true,\"mtime_ns\":1773399956912119200,\"size\":26},\"repo_root\":\"C:\\\\projects\\\\toolrack-template\",\"scripts_root\":\"C:\\\\projects\\\\toolrack-template\\\\scripts\"}"
+  "signature": "{\"aliases_file\":\"C:\\\\projects\\\\toolrack-template\\\\aliases.cfg\",\"aliases_state\":{\"exists\":false,\"mtime_ns\":0,\"size\":0},\"entries\":[{\"registry_entry\":\"scripts/example/hello.py\",\"script_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":283},\"sidecar_state\":{\"exists\":true,\"mtime_ns\":1773391009570845000,\"size\":96}},{\"registry_entry\":\"scripts/git/fixup-all.py\",\"script_state\":{\"exists\":true,\"mtime_ns\":1773572916468751500,\"size\":1263},\"sidecar_state\":{\"exists\":true,\"mtime_ns\":1773572964838820600,\"size\":36}}],\"registry\":[\"scripts/example/hello.py\",\"scripts/git/fixup-all.py\"],\"registry_file\":\"C:\\\\projects\\\\toolrack-template\\\\.toolrack\",\"registry_state\":{\"exists\":true,\"mtime_ns\":1773572977655182700,\"size\":52},\"repo_root\":\"C:\\\\projects\\\\toolrack-template\",\"scripts_root\":\"C:\\\\projects\\\\toolrack-template\\\\scripts\"}"
 }
