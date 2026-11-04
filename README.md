@@ -7,6 +7,36 @@ This template is the companion repo to
 [`toolrack`](https://github.com/anfit/toolrack), the dispatcher engine that
 turns a scripts folder plus sidecars into a typed CLI.
 
+## What You Get
+
+Drop a script and a small YAML sidecar into `scripts/`, and you get a typed,
+tab-completable command:
+
+```text
+$ my --help
+Usage: my [OPTIONS] COMMAND [ARGS]...
+
+  Typed dispatcher for a user-owned scripts repository.
+
+Commands:
+  core     Registry management and shell-completion commands.
+  example  Commands from scripts/example/
+
+$ my example hello --help
+Usage: my example hello [OPTIONS]
+
+  Print a greeting.
+
+Options:
+  --name TEXT  Name to greet.  [required]
+
+$ my example hello --name Alice
+hello, Alice
+```
+
+The engine is [`toolrack-cli`](https://pypi.org/project/toolrack-cli/) on PyPI
+(it installs the `toolrack` command), and setup installs it for you.
+
 ## Why This Exists
 
 AI makes it much easier to write simple scripts than it used to. That is great
@@ -55,10 +85,14 @@ refactoring = refactor
 
 ## First-Time Setup
 
-Recommended flow:
+Recommended flow (use `python3` and forward slashes on macOS/Linux):
 
 ```powershell
 python .\setup_toolrack.py
+```
+
+```sh
+python3 ./setup_toolrack.py
 ```
 
 The setup script will:
@@ -84,6 +118,10 @@ of PyPI:
 
 ```powershell
 python .\setup_toolrack.py --yes --cli-name my-tools --toolrack ..\toolrack
+```
+
+```sh
+python3 ./setup_toolrack.py --yes --cli-name my-tools --toolrack ../toolrack
 ```
 
 After setup, open a new shell and run your generated command:
