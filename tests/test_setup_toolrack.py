@@ -136,9 +136,9 @@ class SetupToolrackTests(unittest.TestCase):
     def test_ensure_virtualenv_recreates_broken_existing_env(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            scripts_dir = root / ".venv" / "Scripts"
-            scripts_dir.mkdir(parents=True)
-            (scripts_dir / "python.exe").write_text("", encoding="utf-8")
+            venv_python = setup_toolrack.venv_python(root)  # .venv/Scripts/python.exe or .venv/bin/python
+            venv_python.parent.mkdir(parents=True)
+            venv_python.write_text("", encoding="utf-8")
 
             created = []
 
@@ -150,15 +150,15 @@ class SetupToolrackTests(unittest.TestCase):
                     return subprocess.CompletedProcess(cmd, 103, stdout="", stderr="broken\n")
                 if cmd[1:3] == ["-m", "venv"]:
                     created.append(cmd[-1])
-                    (root / ".venv" / "Scripts").mkdir(parents=True, exist_ok=True)
-                    (root / ".venv" / "Scripts" / "python.exe").write_text("ok", encoding="utf-8")
+                    venv_python.parent.mkdir(parents=True, exist_ok=True)
+                    venv_python.write_text("ok", encoding="utf-8")
                     return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
                 raise AssertionError(f"unexpected command: {cmd}")
 
             with mock.patch.object(setup_toolrack.subprocess, "run", side_effect=fake_run):
                 python_path = setup_toolrack.ensure_virtualenv(sys.executable, root)
 
-            self.assertEqual(root / ".venv" / "Scripts" / "python.exe", python_path)
+            self.assertEqual(venv_python, python_path)
             self.assertEqual([str(root / ".venv")], created)
 
     def test_append_path_block_is_idempotent(self):
@@ -296,7 +296,10 @@ class SetupToolrackTests(unittest.TestCase):
         drive = resolved.drive.rstrip(":").lower()
         suffix = resolved.as_posix()[len(resolved.drive) :]
         path = setup_toolrack.bash_path_for(bin_dir, style="cygwin")
-        self.assertEqual(f"/cygdrive/{drive}{suffix}", path)
+        if not resolved.drive:  # POSIX hosts have no drive letter; the path is used as is
+            self.assertEqual(resolved.as_posix(), path)
+        else:
+            self.assertEqual(f"/cygdrive/{drive}{suffix}", path)
 
 
 if __name__ == "__main__":
