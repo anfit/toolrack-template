@@ -134,6 +134,46 @@ my-tools example hello --name Alice
 If completion was configured successfully, Bash and Cygwin Bash should also
 offer tab completion for your generated command after you open a new shell.
 
+## Migrating From a Checked-Out toolrack
+
+Before `toolrack-cli` was published to PyPI, setup editable-installed a sibling
+`toolrack` checkout into your repo's `.venv`. To move an existing scripts repo
+to the PyPI release (your scripts, `.toolrack`, sidecars, and aliases are not
+touched):
+
+1. Refresh the template-owned files, including the new `setup_toolrack.py`:
+
+   ```sh
+   python3 ./sync_toolrack.py
+   ```
+
+2. Re-run setup with your existing command name. This removes the old editable
+   `toolrack` install, installs `toolrack-cli` from PyPI, rewrites the wrappers
+   in `bin/`, and regenerates the shell completion script:
+
+   ```sh
+   python3 ./setup_toolrack.py --yes --force --cli-name my-tools
+   ```
+
+   (On Windows use `python .\sync_toolrack.py` and `python .\setup_toolrack.py ...`.)
+
+3. Open a new shell, then check that the engine comes from PyPI:
+
+   ```sh
+   my-tools --version
+   .venv/bin/python -m pip show toolrack-cli   # Windows: .venv\Scripts\python.exe
+   ```
+
+   `Location` should be the venv's `site-packages`, not your old checkout.
+
+Updating later is `.venv/bin/python -m pip install --upgrade toolrack-cli`.
+You can delete the old `toolrack` checkout unless you plan to develop the
+engine; in that case keep using `--toolrack <path>` for an editable install.
+
+Doing it by hand instead: in the venv run `pip uninstall -y toolrack`, then
+`pip install toolrack-cli`, then regenerate completion with
+`<your-command> core install-completion bash`.
+
 ## Syncing Template-Maintained Files
 
 Some files in a working scripts repo may intentionally track the canonical

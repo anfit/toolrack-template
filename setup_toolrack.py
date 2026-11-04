@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 BIN_DIR = REPO_ROOT / "bin"
 DEFAULT_WRAPPER_BASENAME = "your-tools"
 PYPI_PACKAGE = "toolrack-cli"
+LEGACY_PACKAGE = "toolrack"
 PATH_BLOCK_MARKER = "toolrack-template bin"
 COMPLETION_BLOCK_MARKER = "toolrack-template bash completion loader"
 LEGACY_COMPLETION_BLOCK_MARKER = "toolrack-template completion"
@@ -121,6 +122,14 @@ def ensure_virtualenv(python_executable: str, repo_root: Path) -> Path:
 
 def install_toolrack(python_path: Path, toolrack_path: Path | None = None) -> None:
     """Install the engine from PyPI, or editable from a local checkout."""
+    # Before the PyPI release the engine was an editable install under the
+    # distribution name "toolrack". It ships the same import package as
+    # toolrack-cli, so a leftover copy would shadow the new install.
+    subprocess.run(
+        [str(python_path), "-m", "pip", "uninstall", "-y", LEGACY_PACKAGE],
+        check=False,
+        capture_output=True,
+    )
     if toolrack_path is None:
         command = [str(python_path), "-m", "pip", "install", "--upgrade", PYPI_PACKAGE]
     else:

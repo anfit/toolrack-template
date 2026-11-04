@@ -75,10 +75,11 @@ class SetupToolrackTests(unittest.TestCase):
             setup_toolrack.install_toolrack(python, None)
             setup_toolrack.install_toolrack(python, Path("/src/toolrack"))
 
-        self.assertEqual(
-            ["py", "-m", "pip", "install", "--upgrade", "toolrack-cli"], run.call_args_list[0].args[0]
-        )
-        self.assertEqual(["py", "-m", "pip", "install", "-e"], run.call_args_list[1].args[0][:5])
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(["py", "-m", "pip", "uninstall", "-y", "toolrack"], commands[0])
+        self.assertEqual(["py", "-m", "pip", "install", "--upgrade", "toolrack-cli"], commands[1])
+        self.assertEqual(["py", "-m", "pip", "uninstall", "-y", "toolrack"], commands[2])
+        self.assertEqual(["py", "-m", "pip", "install", "-e"], commands[3][:5])
 
     def test_resolve_python_executable_prefers_existing_file(self):
         resolved = setup_toolrack.resolve_python_executable(sys.executable)
