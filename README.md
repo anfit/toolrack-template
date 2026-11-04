@@ -134,6 +134,15 @@ my-tools example hello --name Alice
 If completion was configured successfully, Bash and Cygwin Bash should also
 offer tab completion for your generated command after you open a new shell.
 
+## Testing Your Tools
+
+`tests/test_tools.py` shows the pattern: installing `toolrack-cli` gives pytest
+the `toolrack_project` fixture (this repo) and `toolrack_repo` (a throwaway
+one), which run the real CLI. For Python, Bash and SQL examples, and for
+`core validate` in CI, see the
+[toolrack README](https://github.com/anfit/toolrack#testing-your-tools). Run
+the tests with `python -m pip install pytest toolrack-cli` then `python -m pytest`.
+
 ## Migrating From a Checked-Out toolrack
 
 Before `toolrack-cli` was published to PyPI, setup editable-installed a sibling
