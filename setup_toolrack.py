@@ -151,21 +151,84 @@ def wrapper_templates() -> dict[str, Path]:
     }
 
 
+# Built-in copies of bin/your-tools and bin/your-tools.cmd. A repository that was
+# set up with --remove-template-assets (or predates the template wrappers) has no
+# template files to copy, so setup falls back to these. A test keeps them
+# identical to the files in bin/.
+FALLBACK_WRAPPERS = {
+    "posix": """\
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+if [[ "$SCRIPT_PATH" != */* ]]; then
+  SCRIPT_PATH="./$SCRIPT_PATH"
+fi
+SCRIPT_DIR="${SCRIPT_PATH%/*}"
+if [[ "$SCRIPT_DIR" == "$SCRIPT_PATH" ]]; then
+  SCRIPT_DIR="."
+fi
+SCRIPT_DIR="$(cd -- "$SCRIPT_DIR" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+export TOOLRACK_CLI_NAME="${BASH_SOURCE[0]##*/}"
+export TOOLRACK_REPO_ROOT="$REPO_ROOT"
+export TOOLRACK_SCRIPTS_ROOT="$REPO_ROOT/scripts"
+export TOOLRACK_REGISTRY_FILE="$REPO_ROOT/.toolrack"
+
+# Windows venvs use Scripts/, POSIX venvs use bin/.
+if [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
+  PYTHON="$REPO_ROOT/.venv/bin/python"
+else
+  PYTHON="$REPO_ROOT/.venv/Scripts/python.exe"
+fi
+
+exec "$PYTHON" -m toolrack "$@"
+""",
+    "cmd": """\
+@echo off
+setlocal
+
+set "REPO_ROOT=%~dp0.."
+for %%I in ("%REPO_ROOT%") do set "REPO_ROOT=%%~fI"
+
+set "TOOLRACK_CLI_NAME=%~n0"
+set "TOOLRACK_REPO_ROOT=%REPO_ROOT%"
+set "TOOLRACK_SCRIPTS_ROOT=%REPO_ROOT%\\scripts"
+set "TOOLRACK_REGISTRY_FILE=%REPO_ROOT%\\.toolrack"
+
+"%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m toolrack %*
+""",
+}
+
+
+def wrapper_template_text(kind: str) -> str:
+    """Wrapper template contents (LF newlines): the file in bin/, else the built-in copy."""
+    template = wrapper_templates()[kind]
+    if template.is_file():
+        text = template.read_text(encoding="utf-8")
+    else:
+        text = FALLBACK_WRAPPERS[kind]
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def write_wrappers(cli_name: str, force: bool) -> dict[str, Path]:
     targets = wrapper_targets(cli_name)
-    templates = wrapper_templates()
 
     for kind, target in targets.items():
         if target.exists() and not force:
             raise FileExistsError(f"{target} already exists. Re-run with --force to overwrite it.")
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+
+    for kind, target in targets.items():
+        contents = wrapper_template_text(kind)
         if kind == "posix":
-            contents = templates[kind].read_text(encoding="utf-8")
             # Force LF line endings so the shebang stays portable in Git Bash and Cygwin.
-            target.write_text(contents.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8", newline="\n")
+            target.write_text(contents, encoding="utf-8", newline="\n")
             if os.name != "nt":
                 target.chmod(target.stat().st_mode | 0o111)
         else:
-            shutil.copyfile(templates[kind], target)
+            target.write_text(contents, encoding="utf-8", newline="\r\n")
     return targets
 
 

@@ -50,6 +50,39 @@ class SetupToolrackTests(unittest.TestCase):
             self.assertIn('SCRIPT_PATH="${BASH_SOURCE[0]}"\n', posix_contents)
             self.assertTrue(targets["cmd"].read_text(encoding="utf-8").startswith("@echo off"))
 
+    def test_fallback_wrappers_match_the_template_files(self):
+        bin_dir = self._sample_bin_dir()
+        for kind, name in (("posix", "your-tools"), ("cmd", "your-tools.cmd")):
+            on_disk = (bin_dir / name).read_text(encoding="utf-8").replace("\r\n", "\n")
+            self.assertEqual(on_disk, setup_toolrack.FALLBACK_WRAPPERS[kind], kind)
+
+    def test_write_wrappers_without_template_files_uses_builtin_copies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "bin"  # does not exist: no templates, not even the folder
+
+            with mock.patch.object(setup_toolrack, "BIN_DIR", bin_dir):
+                targets = setup_toolrack.write_wrappers("my-tools", force=True)
+
+            posix = targets["posix"].read_bytes()
+            self.assertTrue(posix.startswith(b"#!/bin/bash\n"))
+            self.assertNotIn(b"\r", posix)
+            self.assertIn(b"toolrack", posix)
+            cmd = targets["cmd"].read_bytes()
+            self.assertTrue(cmd.startswith(b"@echo off\r\n"))
+
+    def test_write_wrappers_refuses_to_overwrite_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "my-tools").write_text("mine", encoding="utf-8")
+
+            with mock.patch.object(setup_toolrack, "BIN_DIR", bin_dir):
+                with self.assertRaises(FileExistsError):
+                    setup_toolrack.write_wrappers("my-tools", force=False)
+
+            self.assertEqual("mine", (bin_dir / "my-tools").read_text(encoding="utf-8"))
+            self.assertFalse((bin_dir / "my-tools.cmd").exists())
+
     def test_build_options_defaults_to_pypi_install_with_yes(self):
         with mock.patch.object(setup_toolrack, "default_cli_name", return_value="repo-tools"):
             args = setup_toolrack.parse_args(["--yes"])
